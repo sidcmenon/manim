@@ -374,6 +374,7 @@ class SceneFileWriter:
     def init_audio(self) -> None:
         """Preps the writer for adding audio to the movie."""
         self.includes_sound = False
+        self.paused_audio_segment: AudioSegment | None = None
 
     def create_audio_segment(self) -> None:
         """Creates an empty, silent, Audio Segment."""
@@ -469,17 +470,57 @@ class SceneFileWriter:
         """Stops all audio that would play at or after the given timestamp.
 
         Sounds added afterwards (at a later timestamp) are not affected.
+        Audio held back by :meth:`pause_sound` is discarded.
 
         Parameters
         ----------
         time
             The timestamp at which all audio should be cut off.
         """
-        if not self.includes_sound:
-            return
         if time < 0:
             raise ValueError("Stopping sound at timestamp < 0")
+        self.paused_audio_segment = None
+        if not self.includes_sound:
+            return
         self.audio_segment = self.audio_segment[: int(1000 * time)]
+
+    def pause_sound(self, time: float) -> None:
+        """Pauses all audio at the given timestamp.
+
+        The audio that would have played after ``time`` is held back
+        until :meth:`resume_sound` is called.
+
+        Parameters
+        ----------
+        time
+            The timestamp at which all audio should be paused.
+        """
+        if self.paused_audio_segment is not None:
+            logger.warning("Sound is already paused, ignoring pause_sound().")
+            return
+        if self.includes_sound:
+            paused_audio_segment = self.audio_segment[int(1000 * time) :]
+        else:
+            paused_audio_segment = AudioSegment.empty()
+        self.stop_sound(time)
+        self.paused_audio_segment = paused_audio_segment
+
+    def resume_sound(self, time: float) -> None:
+        """Resumes the audio held back by :meth:`pause_sound` at the given
+        timestamp.
+
+        Parameters
+        ----------
+        time
+            The timestamp at which the paused audio should continue.
+        """
+        if self.paused_audio_segment is None:
+            logger.warning("Sound is not paused, ignoring resume_sound().")
+            return
+        paused_audio_segment = self.paused_audio_segment
+        self.paused_audio_segment = None
+        if len(paused_audio_segment) > 0:
+            self.add_audio_segment(paused_audio_segment, time)
 
     def _fit_audio_to_duration(self, duration: float) -> None:
         """Pads with silence or truncates the audio so that it lasts

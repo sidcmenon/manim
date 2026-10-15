@@ -348,3 +348,19 @@ class Manager(Generic[SceneT]):
         right moment.
         """
         self.file_writer.stop_sound(self.time)
+
+    def pause_sound(self) -> None:
+        """Pause all sound at the current scene time.
+
+        Like :meth:`stop_sound`, this is applied even while animations are
+        being skipped.
+        """
+        self.file_writer.pause_sound(self.time)
+
+    def resume_sound(self) -> None:
+        """Resume paused sound at the current scene time.
+
+        Like :meth:`stop_sound`, this is applied even while animations are
+        being skipped, so that paused sound is never lost.
+        """
+        self.file_writer.resume_sound(self.time)

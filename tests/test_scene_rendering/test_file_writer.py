@@ -166,14 +166,18 @@ def _audio_samples(container):
     return samples, sample_rate
 
 
-def test_audio_does_not_extend_video_and_stop_sound(config, tmp_path):
-    sound_path = tmp_path / "tone.wav"
+def _write_tone(sound_path, seconds):
     rate = 44100
-    t = np.arange(4 * rate) / rate
+    t = np.arange(int(seconds * rate)) / rate
     tone = (8000 * np.sin(2 * np.pi * 440 * t)).astype(np.int16)
     with wave.open(str(sound_path), "w") as f:
         f.setparams((1, 2, rate, 0, "NONE", "not compressed"))
         f.writeframes(tone.tobytes())
+
+
+def test_audio_does_not_extend_video_and_stop_sound(config, tmp_path):
+    sound_path = tmp_path / "tone.wav"
+    _write_tone(sound_path, 4)
 
     class StopSoundScene(Scene):
         def construct(self):
@@ -195,6 +199,34 @@ def test_audio_does_not_extend_video_and_stop_sound(config, tmp_path):
     assert samples[: int(0.9 * sample_rate)].max() > 0.1
     # allow for some codec ringing right after the cut
     assert samples[int(1.1 * sample_rate) :].max() < 0.01
+
+
+def test_pause_and_resume_sound(config, tmp_path):
+    sound_path = tmp_path / "tone.wav"
+    _write_tone(sound_path, 2)
+
+    class PauseSoundScene(Scene):
+        def construct(self):
+            self.add_sound(sound_path)
+            self.wait(1)
+            self.pause_sound()
+            self.wait(1)
+            self.resume_sound()
+            self.wait(1)
+
+    config.media_dir = tmp_path
+    config.output_file = "pause_sound"
+    PauseSoundScene().render()
+
+    video_path = next(tmp_path.rglob("pause_sound.mp4"))
+    with av.open(video_path) as container:
+        assert container.duration / av.time_base == pytest.approx(3, abs=0.05)
+        samples, sample_rate = _audio_samples(container)
+
+    assert samples[: int(0.9 * sample_rate)].max() > 0.1
+    # allow for some codec ringing right after the pause and before resuming
+    assert samples[int(1.1 * sample_rate) : int(1.9 * sample_rate)].max() < 0.01
+    assert samples[int(2.1 * sample_rate) : int(2.9 * sample_rate)].max() > 0.1
 
 
 @pytest.mark.slow

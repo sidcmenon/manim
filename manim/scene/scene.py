@@ -1833,6 +1833,44 @@ class Scene:
         """
         self._get_manager().stop_sound()
 
+    def pause_sound(self) -> None:
+        """
+        Pauses all sounds that are currently playing.
+
+        Every sound added with :meth:`add_sound` is paused at the current
+        time of the scene, including sounds scheduled to start later via
+        ``time_offset``, until :meth:`resume_sound` is called. Sounds added
+        while paused play normally. Calling :meth:`stop_sound` while paused
+        discards the paused sounds.
+
+        Examples
+        --------
+        .. manim:: PauseSoundExample
+            :no_autoplay:
+
+            class PauseSoundExample(Scene):
+                def construct(self):
+                    self.add_sound("click.wav")
+                    self.add_sound("click.wav", time_offset=1)
+                    self.wait(0.5)
+                    self.pause_sound()
+                    # silence
+                    self.wait(2)
+                    # the second click is heard half a second from now
+                    self.resume_sound()
+                    self.wait()
+        """
+        self._get_manager().pause_sound()
+
+    def resume_sound(self) -> None:
+        """
+        Resumes the sounds paused by :meth:`pause_sound`.
+
+        The paused sounds continue from where they were paused, starting
+        at the current time of the scene.
+        """
+        self._get_manager().resume_sound()
+
     def on_mouse_motion(self, point: Point3D, d_point: Point3D) -> None:
         assert isinstance(self.camera, OpenGLCamera)
         assert isinstance(self.renderer, OpenGLRenderer)
